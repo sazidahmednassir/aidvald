@@ -1,0 +1,15 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation & sensitive assets
+doc/
+
+# Generated reports & logs
+reports/
+*.log
