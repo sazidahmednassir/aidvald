@@ -51,3 +51,4 @@ Validating mobile accessibility IDs manually or through ad-hoc inspection is err
    ```
 2. Ensure `adb` (for Android) and/or `xcrun` / `libimobiledevice` (for iOS) are installed and available on your `PATH`.
 3. Start your Appium server with the required driver (`uiautomator2` or `xcuitest`).
+
