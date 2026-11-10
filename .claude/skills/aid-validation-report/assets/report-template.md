@@ -1,7 +1,8 @@
-# AID Validation Report — {Platform} / {Device}
+# AID Validation Report — {App} {Version} {Environment} ({Platform})
 
 > One device per report. Do not include the other platform's results here.
-> File: `reports/aid-validation/<build>/AID_Validation_Report_<build>_<Platform>_<Device>_<date>.md`
+> Deliverable: `reports/aid-validation/<build>/AID Validation Report - {App} {Version} {Environment} ({Platform}) - {date}.docx`
+> Source (this file): the matching `... .md`, rendered to .docx with pandoc (quote the names — they contain spaces).
 > Every image below is produced by `annotate_aids.py` in Phase 6. Use relative paths.
 
 ## 1. Summary
@@ -86,7 +87,7 @@
 ---
 
 ## Cross-device summary (only if both platforms validated)
-> File: `reports/aid-validation/<build>/AID_Validation_Summary_<build>_<date>.md`
+> Deliverable: `reports/aid-validation/<build>/AID Validation Summary - {App} {Version} {Environment} - {date}.docx` (Markdown source beside it)
 > One totals row per device + links to each device report. Do NOT merge issue lists.
 
 | Device | Found | Mismatch | Wrong attr | Duplicate | Missing | Not checked | Report |

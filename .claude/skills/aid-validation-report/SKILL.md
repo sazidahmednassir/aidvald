@@ -1,14 +1,34 @@
 ---
 name: aid-validation-report
-description: Phase 7 of AID validation. Use after the screen-by-screen comparison is done, to write one report per target device under the reports/aid-validation build folder, each covering exactly one device and never mentioning the other platform's results. Each report is visual: per screen it embeds the annotated (all-AIDs-highlighted) screenshot and a documented inventory of every accessibility ID found, each non-Found AID gets a focused colour-coded highlight next to its Figma reference, and dynamic {children[]} patterns get one grouped highlight. States explicit coverage (proposed AIDs checked vs total). Markdown by default; renders a .docx/.pdf with embedded visuals when asked. Runs the final silent self-check before handing back the report path(s) and totals.
+description: Phase 7 of AID validation. Use after the screen-by-screen comparison is done, to write one report per target device under the reports/aid-validation build folder, each covering exactly one device and never mentioning the other platform's results. Each report is visual: per screen it embeds the annotated (all-AIDs-highlighted) screenshot and a documented inventory of every accessibility ID found, each non-Found AID gets a focused colour-coded highlight next to its Figma reference, and dynamic {children[]} patterns get one grouped highlight. States explicit coverage (proposed AIDs checked vs total). Delivers a Word (**.docx**) report with embedded visuals by default (Markdown kept as the editable source); before writing, confirms the build this report is for and composes a readable report name (app + version + environment + platform). Runs the final silent self-check before handing back the report path(s) and totals.
 ---
 
 # AID Validation — Reporting (Phase 7)
 
 Restate the session state line first. Create **one report per target device**. Each report covers **only that device** — never mention the other platform's results in it. Read `assets/report-template.md` for the full structure.
 
-Report path:
-`reports/aid-validation/<build>/AID_Validation_Report_<build>_<Platform>_<Device>_<date>.md`
+## Step 1 — Confirm the build and compose a readable report name
+
+Before writing anything, confirm **which build this report is for** and build a plain-language file name from it. Do not reuse the technical device hash in the name.
+
+1. Gather the four naming parts from what the session already knows (Phase 1 `.env` + the user's platform/environment choice):
+   - **App** — a short display name, not the package. Propose one from the package/bundle ID (e.g. `com.portonics.mygp.debug` → `MyGP`) and **ask the user to confirm or correct it**.
+   - **Version** — the installed build/app version from `.env` (e.g. `6.0.1`), without the environment suffix.
+   - **Environment** — in title case: `stage` → `Staging`, `prod` → `Production`, `dev` → `Dev`.
+   - **Platform** — `Android` or `iOS` (this report's device).
+2. Show the proposed name and let the user adjust it:
+   - `AID Validation Report - <App> <Version> <Environment> (<Platform>) - <YYYY-MM-DD>.docx`
+   - Example: `AID Validation Report - MyGP 6.0.1 Staging (Android) - 2026-11-10.docx`
+3. **STOP and wait** for the user to confirm the name before writing the report.
+
+The confirmed base name (without extension) is used for **both** the Markdown source and the rendered `.docx`, written side by side in the evidence build folder:
+
+```
+reports/aid-validation/<build>/AID Validation Report - <App> <Version> <Environment> (<Platform>) - <date>.md   ← editable source
+reports/aid-validation/<build>/AID Validation Report - <App> <Version> <Environment> (<Platform>) - <date>.docx  ← the deliverable
+```
+
+(`<build>` stays the technical build-string folder, e.g. `6.0.1-stage`, so the Phase 6 evidence and relative image paths keep resolving.)
 
 The report is **visual-first**: the screen imagery and the per-screen AID inventory carry the findings; the tables back them up. Every image embedded here is produced in Phase 6 by `annotate_aids.py` — do not hand-draw or hand-list. Link all images with **relative paths** so the report opens correctly from the reports folder.
 
@@ -27,23 +47,28 @@ The report is **visual-first**: the screen imagery and the per-screen AID invent
 5. **Full results table** — every proposed AID with the **full pattern**, its result, and the live value(s). One row per proposed AID: this table is the coverage proof.
 6. **Not checked** and **Not in scope for this device** lists, with reasons.
 
-## Rendering to document format (.docx / .pdf) — when the user asks
+## Render the .docx deliverable (always — this is the output the user receives)
 
-Keep the Markdown as the source of truth, then render with pandoc from inside the evidence build folder so relative image paths resolve and the screenshots embed:
+The deliverable the user wants is the **Word document**, not the raw evidence. The per-screen PNGs (annotated/callout screenshots) and the XML (page source) from Phase 6 are **internal evidence that get embedded into / referenced by the report** — they are never handed over as the output on their own. Keep the Markdown as the editable source of truth, then always render it to `.docx`.
+
+Render with pandoc from inside the evidence build folder so relative image paths resolve and the screenshots embed. The readable name has spaces and parentheses, so **quote the file names**:
 
 ```bash
-cd reports/aid-validation/<build>
-pandoc AID_Validation_Report_<build>_<Platform>_<Device>_<date>.md \
-  -o AID_Validation_Report_<build>_<Platform>_<Device>_<date>.docx
-# PDF: add `--pdf-engine=weasyprint` (or wkhtmltopdf) instead of the .docx output.
+cd "reports/aid-validation/<build>"
+pandoc "AID Validation Report - <App> <Version> <Environment> (<Platform>) - <date>.md" \
+  -o "AID Validation Report - <App> <Version> <Environment> (<Platform>) - <date>.docx"
 ```
+
+**If pandoc is missing** (`command -v pandoc` is empty): per the orchestrator's "Ask before installing" rule, tell the user pandoc is needed to produce the `.docx` and ask before installing it — on macOS `brew install pandoc`. Do not install silently. If the user declines, hand over the Markdown source and say the `.docx` was not produced.
+
+If the user also wants a PDF, add it as an extra output (needs a PDF engine such as weasyprint or wkhtmltopdf installed): `--pdf-engine=weasyprint -o "<same base name>.pdf"`.
 
 **Pandoc version caveat.** Pandoc < 2.11 (e.g. 2.9) writes a malformed table width (`w:w="0.0"`) that makes Word/LibreOffice collapse every table to its first column. Check with `pandoc --version`; if it is old, render with a newer pandoc (2.11+) or, if only the old one is available, keep image comparisons as **stacked** images (label + image, not side-by-side table cells) — stacking never depends on table widths — and after rendering, sanity-check that the Summary/Totals tables show their value columns.
 
 Tall phone screenshots are large, so in the Markdown give each embedded image an explicit width for print, e.g. `![alt](path){width=2.4in}` (annotated full-screen) and `{width=2.6in}` (side-by-side issue cells), so a screen fits on a page. Deliver the rendered file and keep the .md beside it.
 
 ## If both platforms were validated
-Also write a short `AID_Validation_Summary_<build>_<date>.md` with one totals + coverage row per device and links to the two device reports. **Do not merge the issue lists.**
+Produce one `.docx` per device (each with its own `(Android)` / `(iOS)` name), **and** a short combined summary rendered to `.docx` too: `AID Validation Summary - <App> <Version> <Environment> - <date>.docx` (Markdown source beside it), with one totals + coverage row per device and links to the two device reports. **Do not merge the issue lists.**
 
 ## Final silent self-check (before handing back)
 
@@ -51,8 +76,9 @@ Apply `superpowers:verification-before-completion` — confirm all of this silen
 - Only the selected platform(s)/device(s) were checked, and each report covers exactly one device.
 - **Coverage holds:** every proposed AID from the Phase 3 doc has exactly one result row; the Coverage line's N/N matches the table.
 - Every **Found** is backed by the saved page source; every **Missing** was checked after scrolling; array-pattern instances are grouped, not flagged as duplicates/undocumented.
-- Every screen block embeds its `-annotated.png` and its `-aids.md` inventory, and every image path resolves (relative to the report file). If a .docx/.pdf was produced, its images embedded.
+- Every screen block embeds its `-annotated.png` and its `-aids.md` inventory, and every image path resolves (relative to the report file). The **.docx** rendered successfully and its images embedded (open/verify it, not just the .md); if pandoc was unavailable and the user declined installing it, this is called out instead.
 - Every issue has the element name from the proposed doc, the screen number, and **both** images (Figma + focused live).
+- The report name was confirmed with the user and reads in plain language (`AID Validation Report - <App> <Version> <Environment> (<Platform>) - <date>`), with no leftover device hash.
 - No secrets appear in the report or the chat.
 
-Finish by telling the user the report path(s), the coverage (N/N), and the totals for each device. **Do not paste the whole report into the chat.**
+Finish by telling the user the **.docx** report path(s) (the deliverable), the coverage (N/N), and the totals for each device. The PNG/XML evidence stays in the build folder as backup — do not present it as the output. **Do not paste the whole report into the chat.**
