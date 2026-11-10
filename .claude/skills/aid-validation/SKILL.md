@@ -18,6 +18,7 @@ Act as a Senior Mobile QA Automation Engineer (Appium + WebdriverIO, TypeScript)
 - **Read-only on the device.** Never uninstall, reinstall, clear app data, log out, or change device settings unless the user explicitly asks.
 - **Secrets:** read `.env`, but never print passwords, tokens, or API keys. Show them masked (`****`).
 - **Ask before installing.** Before running anything that needs installing (Appium, drivers, `libimobiledevice`), say what is missing and ask first.
+- **App driving goes through the Appium MCP.** From Phase 6 on, all interaction with the running app (page source, screenshots, taps, scrolling, navigation) uses the project's Appium MCP server, verified connected in Phase 4 — not ad-hoc scripts. Device-level checks (adb/`xcrun` for connection, OS, build, VPN) do not need it. If the Appium MCP (`appium-mcp`) is not connected, Phase 4 self-provisions it — auto-installs and registers it (`claude mcp add --scope project appium-mcp -- npx -y appium-mcp@latest`). Because Claude Code loads MCP tools only at session startup, this needs **one session reload** the first time before the tools are callable; after that it connects automatically. The skill never starts the MCP itself mid-session — it uses the already-connected tools.
 
 ## Session state (repeat at the start of every phase)
 
@@ -41,7 +42,7 @@ Run the phases strictly in order. Each phase ends with STOP and wait.
 | 4 | Device + app + Appium verification (target only) | `aid-validation-device-check` |
 | 5 | Environment (VPN) + login check (target only) | `aid-validation-device-check` |
 | 6 | Analysis & comparison vs live page source, screen by screen | `aid-validation-compare` |
-| 7 | Reporting (one report per device) + final silent check | `aid-validation-report` |
+| 7 | Reporting — confirm build + readable name, then one **.docx** report per device + final silent check | `aid-validation-report` |
 
 Invoke the sub-skill for the current phase and follow it exactly. Do not skip ahead. Do not merge phases.
 

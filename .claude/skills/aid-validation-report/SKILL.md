@@ -1,6 +1,6 @@
 ---
 name: aid-validation-report
-description: Phase 7 of AID validation. Use after the screen-by-screen comparison is done, to write one report per target device under the reports/aid-validation build folder, each covering exactly one device and never mentioning the other platform's results. Each report is visual: per screen it embeds the annotated (all-AIDs-highlighted) screenshot and a documented inventory of every accessibility ID found, each non-Found AID gets a focused colour-coded highlight next to its Figma reference, and dynamic {children[]} patterns get one grouped highlight. States explicit coverage (proposed AIDs checked vs total). Delivers a Word (**.docx**) report with embedded visuals by default (Markdown kept as the editable source); before writing, confirms the build this report is for and composes a readable report name (app + version + environment + platform). Runs the final silent self-check before handing back the report path(s) and totals.
+description: Phase 7 of AID validation. Use after the screen-by-screen comparison is done, to write one report per target device under the reports/aid-validation build folder, each covering exactly one device and never mentioning the other platform's results. Each report is visual: per screen it embeds the annotated (all-AIDs-highlighted) screenshot and a documented inventory of every accessibility ID found, each non-Found AID gets a focused colour-coded highlight next to its Figma reference, and dynamic {children[]} patterns get one grouped highlight. States explicit coverage (proposed AIDs checked vs total). Delivers a Word (**.docx**) report with embedded visuals by default, rendered by the bundled assets/md2docx.py helper (python-docx; no pandoc or network needed, pandoc an optional fallback) with the Markdown kept as the editable source; before writing, confirms the build this report is for and composes a readable report name (app + version + environment + platform). Runs the final silent self-check before handing back the report path(s) and totals.
 ---
 
 # AID Validation — Reporting (Phase 7)
@@ -51,21 +51,37 @@ The report is **visual-first**: the screen imagery and the per-screen AID invent
 
 The deliverable the user wants is the **Word document**, not the raw evidence. The per-screen PNGs (annotated/callout screenshots) and the XML (page source) from Phase 6 are **internal evidence that get embedded into / referenced by the report** — they are never handed over as the output on their own. Keep the Markdown as the editable source of truth, then always render it to `.docx`.
 
-Render with pandoc from inside the evidence build folder so relative image paths resolve and the screenshots embed. The readable name has spaces and parentheses, so **quote the file names**:
+### Default renderer — the bundled `md2docx.py` (no pandoc, no network)
+
+Render with the bundled `assets/md2docx.py` helper. It uses `python-docx` only (no pandoc, no large download — so it works on locked-down machines where a pandoc install fails), embeds the screenshots, and is not affected by pandoc's old-version table bug. Run it **from inside the evidence build folder** so the relative image paths resolve; the names have spaces, so **quote them**:
+
+```bash
+cd "reports/aid-validation/<build>"
+python3 "$OLDPWD/.claude/skills/aid-validation-report/assets/md2docx.py" \
+  "AID Validation Report - <App> <Version> <Environment> (<Platform>) - <date>.md" \
+  "AID Validation Report - <App> <Version> <Environment> (<Platform>) - <date>.docx"
+# (use the absolute path to md2docx.py from the project root — $OLDPWD points there if you cd'd in from it)
+```
+
+It prints `WROTE <file>` and `EMBEDDED_IMAGES <n>`; confirm `n` equals the number of images in the Markdown. If `python-docx` is missing, install it (tiny, pure-Python): `pip3 install python-docx`.
+
+### Optional higher-fidelity fallback — pandoc
+
+Only if the user explicitly wants pandoc (e.g. for richer Markdown features), and it is installed, render from the same folder:
 
 ```bash
 cd "reports/aid-validation/<build>"
 pandoc "AID Validation Report - <App> <Version> <Environment> (<Platform>) - <date>.md" \
-  -o "AID Validation Report - <App> <Version> <Environment> (<Platform>) - <date>.docx"
+  -o   "AID Validation Report - <App> <Version> <Environment> (<Platform>) - <date>.docx"
 ```
 
-**If pandoc is missing** (`command -v pandoc` is empty): per the orchestrator's "Ask before installing" rule, tell the user pandoc is needed to produce the `.docx` and ask before installing it — on macOS `brew install pandoc`. Do not install silently. If the user declines, hand over the Markdown source and say the `.docx` was not produced.
+- **Install only if asked.** Per the orchestrator's "Ask before installing" rule, do not install pandoc silently. (`brew install pandoc` on macOS; note Homebrew bottle downloads may fail on restricted networks — the default `md2docx.py` path avoids this entirely.)
+- **Pandoc version caveat.** Pandoc < 2.11 writes a malformed table width (`w:w="0.0"`) that collapses every table to its first column in Word/LibreOffice. Use 2.11+, and after rendering sanity-check that the Summary/Totals tables show their value columns.
+- **PDF:** add a PDF engine (weasyprint / wkhtmltopdf) and `--pdf-engine=weasyprint -o "<same base name>.pdf"`.
 
-If the user also wants a PDF, add it as an extra output (needs a PDF engine such as weasyprint or wkhtmltopdf installed): `--pdf-engine=weasyprint -o "<same base name>.pdf"`.
+### Image widths
 
-**Pandoc version caveat.** Pandoc < 2.11 (e.g. 2.9) writes a malformed table width (`w:w="0.0"`) that makes Word/LibreOffice collapse every table to its first column. Check with `pandoc --version`; if it is old, render with a newer pandoc (2.11+) or, if only the old one is available, keep image comparisons as **stacked** images (label + image, not side-by-side table cells) — stacking never depends on table widths — and after rendering, sanity-check that the Summary/Totals tables show their value columns.
-
-Tall phone screenshots are large, so in the Markdown give each embedded image an explicit width for print, e.g. `![alt](path){width=2.4in}` (annotated full-screen) and `{width=2.6in}` (side-by-side issue cells), so a screen fits on a page. Deliver the rendered file and keep the .md beside it.
+Tall phone screenshots are large, so in the Markdown give each embedded image an explicit width for print, e.g. `![alt](path){width=2.4in}` (annotated full-screen) and `{width=2.6in}` (side-by-side issue cells), so a screen fits on a page — both renderers honour `{width=Xin}`. Deliver the rendered `.docx` and keep the `.md` beside it.
 
 ## If both platforms were validated
 Produce one `.docx` per device (each with its own `(Android)` / `(iOS)` name), **and** a short combined summary rendered to `.docx` too: `AID Validation Summary - <App> <Version> <Environment> - <date>.docx` (Markdown source beside it), with one totals + coverage row per device and links to the two device reports. **Do not merge the issue lists.**
@@ -76,7 +92,7 @@ Apply `superpowers:verification-before-completion` — confirm all of this silen
 - Only the selected platform(s)/device(s) were checked, and each report covers exactly one device.
 - **Coverage holds:** every proposed AID from the Phase 3 doc has exactly one result row; the Coverage line's N/N matches the table.
 - Every **Found** is backed by the saved page source; every **Missing** was checked after scrolling; array-pattern instances are grouped, not flagged as duplicates/undocumented.
-- Every screen block embeds its `-annotated.png` and its `-aids.md` inventory, and every image path resolves (relative to the report file). The **.docx** rendered successfully and its images embedded (open/verify it, not just the .md); if pandoc was unavailable and the user declined installing it, this is called out instead.
+- Every screen block embeds its `-annotated.png` and its `-aids.md` inventory, and every image path resolves (relative to the report file). The **.docx** rendered successfully via `md2docx.py` and its `EMBEDDED_IMAGES` count equals the number of images in the Markdown (verify the .docx, not just the .md).
 - Every issue has the element name from the proposed doc, the screen number, and **both** images (Figma + focused live).
 - The report name was confirmed with the user and reads in plain language (`AID Validation Report - <App> <Version> <Environment> (<Platform>) - <date>`), with no leftover device hash.
 - No secrets appear in the report or the chat.
